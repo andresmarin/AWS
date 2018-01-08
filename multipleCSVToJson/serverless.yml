@@ -1,0 +1,93 @@
+# Welcome to serverless. Read the docs
+# https://serverless.com/framework/docs/
+
+# Serverless.yml is the configuration the CLI
+# uses to deploy your code to your provider of choice
+
+# The `service` block is the name of the service
+service: multipleCSVToJsonV1
+
+custom:
+  uploadbucket: amarincsvbucket
+  newfilebucket: amarinjsonbucket
+  sqs: CsvQueue
+
+# The `provider` block defines where your service will be deployed
+provider:
+  name: aws
+  runtime: nodejs6.10
+  memorySize: 1536
+  region: us-west-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action: [ 
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutBucketNotification",
+        ] 
+      Resource: "arn:aws:s3:::${self:custom.uploadbucket}/*"
+
+    - Effect: Allow
+      Action: [ 
+        "sqs:*"
+        ] 
+      Resource: arn:aws:sqs:*:*:${self:custom.sqs}
+      Condition:
+        ArnEquals:
+          aws:SourceArn: "arn:aws:s3:::${self:custom.uploadbucket}"
+
+    - Effect: Allow
+      Action:
+        - SQS:DeleteMessage
+        - SQS:ReceiveMessage
+        - SQS:SendMessage
+      Resource: arn:aws:sqs:*:*:${self:custom.sqs}
+      
+    - Effect: Allow
+      Action: [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject"
+      ] 
+      Resource: "arn:aws:s3:::${self:custom.newfilebucket}/*"
+
+  
+resources:
+  Resources:
+    Messages:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.sqs}
+        MessageRetentionPeriod: 1209600
+        VisibilityTimeout: 60
+    CsvSqsPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Id: MyQueuePolicy
+          Version: '2012-10-17'
+          Statement:
+          - Sid: Allow-S3-SendMessage
+            Effect: Allow
+            Principal: 
+              AWS: "*"
+            Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:SendMessage
+            Resource: "arn:aws:sqs:*:*:${self:custom.sqs}"
+            Condition:
+              ArnEquals:
+                aws:SourceArn: "arn:aws:s3:::${self:custom.uploadbucket}"
+        Queues:
+          - Ref: "Messages"
+    CsvBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.uploadbucket}
+       
+    JsonBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.newfilebucket}
+                

@@ -1,0 +1,75 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "AccelerateConfiguration": {
+          "AccelerationStatus": "Suspended"
+        }
+      }
+    },
+    "Messages": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "CsvQueue",
+        "MessageRetentionPeriod": 1209600,
+        "VisibilityTimeout": 60
+      }
+    },
+    "CsvSqsPolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Id": "MyQueuePolicy",
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "Allow-S3-SendMessage",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*"
+              },
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:ReceiveMessage",
+                "sqs:SendMessage"
+              ],
+              "Resource": "arn:aws:sqs:*:*:CsvQueue",
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": "arn:aws:s3:::amarincsvbucket"
+                }
+              }
+            }
+          ]
+        },
+        "Queues": [
+          {
+            "Ref": "Messages"
+          }
+        ]
+      }
+    },
+    "CsvBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "amarincsvbucket"
+      }
+    },
+    "JsonBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "amarinjsonbucket"
+      }
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      }
+    }
+  }
+}
